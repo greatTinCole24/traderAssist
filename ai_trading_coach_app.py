@@ -21,7 +21,47 @@ flashcards = [
 
 # --- Synthetic Pattern Data for Quiz ---
 def make_pattern_df(pattern):
-    # ... same as before ...
+    # Generate synthetic OHLC data for quiz patterns
+    if pattern == 'Doji':
+        df = pd.DataFrame({
+            'open': [1.0, 1.05, 1.02, 1.03],
+            'high': [1.03, 1.08, 1.05, 1.06],
+            'low': [0.97, 1.02, 1.00, 1.01],
+            'close': [1.0, 1.05, 1.02, 1.03]
+        })
+    elif pattern == 'Bullish Engulfing':
+        df = pd.DataFrame({
+            'open': [1.1, 1.0],
+            'high': [1.12, 1.15],
+            'low': [1.08, 0.98],
+            'close': [1.05, 1.13]
+        })
+    elif pattern == 'Bearish Engulfing':
+        df = pd.DataFrame({
+            'open': [1.0, 1.12],
+            'high': [1.02, 1.14],
+            'low': [0.98, 1.10],
+            'close': [0.99, 1.08]
+        })
+    elif pattern == 'Hammer':
+        df = pd.DataFrame({
+            'open': [1.1],
+            'high': [1.12],
+            'low': [0.95],
+            'close': [1.08]
+        })
+    elif pattern == 'Shooting Star':
+        df = pd.DataFrame({
+            'open': [1.0],
+            'high': [1.2],
+            'low': [0.98],
+            'close': [1.02]
+        })
+    else:
+        df = pd.DataFrame({
+            'open': [], 'high': [], 'low': [], 'close': []
+        })
+    df.index = range(len(df))
     return df
 
 # --- Tabs Setup ---
@@ -160,7 +200,9 @@ with tab3:
         summary = f"Date: {date.today()}, Total PnL: {total_pnl:.2f}, Win Rate: {win_rate:.2f}%"
         user_q = st.text_area("Ask your quant coach about your strategy's performance, risk-adjusted returns, or edge:")
         if st.button("Submit Quant Query") and user_q:
-            full_prompt = summary + "" + user_q
+            full_prompt = summary + "
+" + user_q
+" + user_q
             try:
                 client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
                 res = client.chat.completions.create(
