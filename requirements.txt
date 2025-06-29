@@ -3,6 +3,7 @@ yfinance
 pandas
 openai
 plotly
+kaleido
 streamlit-drawable-canvas
 matplotlib
 seaborn
