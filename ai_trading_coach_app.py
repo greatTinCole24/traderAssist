@@ -158,7 +158,7 @@ with tab3:
         else:
             st.warning("Ensure your CSV has a 'PnL' column.")
 
-                if all(col in trades.columns for col in ['Entry Price','Exit Price','PnL']):
+            if all(col in trades.columns for col in ['Entry Price','Exit Price','PnL']):
         st.subheader("📝 Quant Entry/Exit Analysis")
         trades_json = trades.to_dict(orient='records')
         prompt = (
