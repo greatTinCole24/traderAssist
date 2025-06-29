@@ -29,18 +29,17 @@ ticker = st.sidebar.selectbox("Choose a Ticker", ["NVDA", "TSLA"])
 window_size = st.sidebar.slider("Window Size (candles)", 20, 100, 50)
 step = st.sidebar.slider("Current Candle Index", 50, 500, 100)
 
+@st.cache_data
 def load_data(ticker):
     df = yf.download(ticker, period="3mo", interval="1h")
     return df.reset_index()
-
-@st.cache_data
-# Load OHLC data once per session
 
 data = load_data(ticker)
 if len(data) < step:
     st.warning("Step exceeds data length")
     st.stop()
 subset = data.iloc[step - window_size:step]
+[step - window_size:step]
 
 # --- TABS LAYOUT ---
 tab1, tab2, tab3 = st.tabs(["📈 Chart", "🎯 Quiz & Annotation", "💬 Chat & Journal"])
