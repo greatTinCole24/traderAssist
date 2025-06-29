@@ -63,14 +63,14 @@ st.components.v1.html(f"""
 
 # --- CANDLESTICK ANALYSIS ---
 last_candle = subset.iloc[-1]
-body = abs(last_candle['Close'] - last_candle['Open'])
-upper_wick = last_candle['High'] - max(last_candle['Close'], last_candle['Open'])
-lower_wick = min(last_candle['Close'], last_candle['Open']) - last_candle['Low']
+body = abs(float(last_candle['Close']) - float(last_candle['Open']))
+upper_wick = float(last_candle['High']) - max(float(last_candle['Close']), float(last_candle['Open']))
+lower_wick = min(float(last_candle['Close']), float(last_candle['Open'])) - float(last_candle['Low'])
 
 st.subheader("🧠 AI Trading Coach Feedback")
 if body < upper_wick and body < lower_wick:
     st.markdown("🔍 This looks like a **Doji** or indecision candle.")
-elif last_candle['Close'] > last_candle['Open']:
+elif float(last_candle['Close']) > float(last_candle['Open']):
     st.markdown("✅ Bullish candle. Consider if it's in trend continuation.")
 else:
     st.markdown("⚠️ Bearish candle. Watch for potential reversals.")
@@ -80,15 +80,15 @@ st.subheader("🎯 Guess the Pattern Drill")
 random_idx = random.randint(window_size, len(data) - 1)
 demo_subset = data.iloc[random_idx - window_size:random_idx]
 demo_last = demo_subset.iloc[-1]
-demo_body = abs(demo_last['Close'] - demo_last['Open'])
-demo_upper = demo_last['High'] - max(demo_last['Close'], demo_last['Open'])
-demo_lower = min(demo_last['Close'], demo_last['Open']) - demo_last['Low']
+demo_body = abs(float(demo_last['Close']) - float(demo_last['Open']))
+demo_upper = float(demo_last['High']) - max(float(demo_last['Close']), float(demo_last['Open']))
+demo_lower = min(float(demo_last['Close']), float(demo_last['Open'])) - float(demo_last['Low'])
 
 user_guess = st.radio("What pattern do you see in the last candle?", ["Bullish", "Bearish", "Doji"])
 if st.button("Submit Guess"):
     if demo_body < demo_upper and demo_body < demo_lower:
         correct = "Doji"
-    elif demo_last['Close'] > demo_last['Open']:
+    elif float(demo_last['Close']) > float(demo_last['Open']):
         correct = "Bullish"
     else:
         correct = "Bearish"
