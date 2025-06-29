@@ -133,7 +133,11 @@ if user_input:
         )
         st.markdown(f"**Coach:** {response.choices[0].message.content}")
     except Exception as e:
-        st.error(f"❌ GPT API call failed: {e}")
+        # Handle insufficient quota specifically
+        if 'insufficient_quota' in str(e):
+            st.error("🚨 You have exceeded your OpenAI API quota. Please check your plan and billing details.")
+        else:
+            st.error(f"❌ GPT API call failed: {e}")
 
 # --- JOURNALING SECTION ---
 st.subheader("📝 Daily Trade Journal with Feedback")
@@ -157,7 +161,11 @@ if st.button("Submit Journal Entry"):
             st.success("✅ Journal entry received. Here's your feedback:")
             st.markdown(f"**Coach Feedback:** {response.choices[0].message.content}")
         except Exception as e:
-            st.error(f"⚠️ Error processing journal entry: {e}")
+            # Handle insufficient quota specifically
+            if 'insufficient_quota' in str(e):
+                st.error("🚨 You have exceeded your OpenAI API quota. Please check your plan and billing details.")
+            else:
+                st.error(f"⚠️ Error processing journal entry: {e}")
     else:
         st.warning("✍️ Please write something before submitting.")
 
