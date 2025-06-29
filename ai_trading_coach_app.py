@@ -125,8 +125,7 @@ if user_input:
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a trading coach that explains candlestick patterns, support/resistance levels, and trade journaling insights."},
-                {"role": "user", "content": f"{candle_description}
-{user_input}"}
+                {"role": "user", "content": f"{candle_description}{user_input}"}
             ]
         )
         st.markdown(f"**Coach:** {response.choices[0].message.content}")
