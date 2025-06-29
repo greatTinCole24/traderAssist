@@ -120,12 +120,13 @@ candle_description = f"The most recent candle on the {ticker} chart is a {direct
 user_input = st.chat_input("Ask your trading coach a question...")
 if user_input:
     try:
-        client = OpenAI(api_key=st.secrets["openai_api_key"])
+        client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a trading coach that explains candlestick patterns, support/resistance levels, and trade journaling insights."},
-                {"role": "user", "content": f"{candle_description}\n{user_input}"}
+                {"role": "user", "content": f"{candle_description}
+{user_input}"}
             ]
         )
         st.markdown(f"**Coach:** {response.choices[0].message.content}")
