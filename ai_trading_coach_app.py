@@ -40,24 +40,24 @@ subset = data.iloc[step - window_size:step]
 # --- TRADINGVIEW CHART EMBED ---
 st.subheader(f"📈 {ticker} TradingView Chart")
 st.components.v1.html(f"""
-    <div class="tradingview-widget-container">
-      <div id="tradingview_{ticker.lower()}"></div>
-      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-      <script type="text/javascript">
+    <div class=\"tradingview-widget-container\">
+      <div id=\"tradingview_{ticker.lower()}\"></div>
+      <script type=\"text/javascript\" src=\"https://s3.tradingview.com/tv.js\"></script>
+      <script type=\"text/javascript\">
       new TradingView.widget({{
-          "width": "100%",
-          "height": 600,
-          "symbol": "{ticker}",
-          "interval": "60",
-          "timezone": "Etc/UTC",
-          "theme": "dark",
-          "style": "1",
-          "locale": "en",
-          "toolbar_bg": "#f1f3f6",
-          "enable_publishing": false,
-          "hide_side_toolbar": false,
-          "allow_symbol_change": true,
-          "container_id": "tradingview_{ticker.lower()}"
+          \"width\": \"100%\",
+          \"height\": 600,
+          \"symbol\": \"{ticker}\",
+          \"interval\": \"60\",
+          \"timezone\": \"Etc/UTC\",
+          \"theme\": \"dark\",
+          \"style\": \"1\",
+          \"locale\": \"en\",
+          \"toolbar_bg\": \"#f1f3f6\",
+          \"enable_publishing\": false,
+          \"hide_side_toolbar\": false,
+          \"allow_symbol_change\": true,
+          \"container_id\": \"tradingview_{ticker.lower()}\"
       }});
       </script>
     </div>
@@ -110,27 +110,30 @@ if st.button("Submit Guess"):
 
 # --- AI CHAT COACH (with OpenAI GPT) ---
 st.subheader("💬 Ask Your Trading Coach")
-
-# Describe the current candle (same one shown in TradingView) to provide context
-direction = "Bullish" if float(last_candle['Close']) > float(last_candle['Open']) else "Bearish"
+# Add context about the last candle
 if body < upper_wick and body < lower_wick:
     direction = "Doji"
+elif float(last_candle['Close']) > float(last_candle['Open']):
+    direction = "Bullish"
+else:
+    direction = "Bearish"
 candle_description = f"The most recent candle on the {ticker} chart is a {direction} candle."
 
 user_input = st.chat_input("Ask your trading coach a question...")
 if user_input:
+    prompt = f"{candle_description}\n{user_input}"
     try:
-        client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
+        client = OpenAI(api_key=st.secrets["general"]["openai_api_key"]) 
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a trading coach that explains candlestick patterns, support/resistance levels, and trade journaling insights."},
-                {"role": "user", "content": f"{candle_description}\n{user_input}"}
+                {"role": "user", "content": prompt}
             ]
         )
         st.markdown(f"**Coach:** {response.choices[0].message.content}")
     except Exception as e:
-        st.error("❌ GPT API call failed. Please check your OpenAI API key in Streamlit secrets.")
+        st.error(f"❌ GPT API call failed: {e}")
 
 # --- JOURNALING SECTION ---
 st.subheader("📝 Daily Trade Journal with Feedback")
@@ -141,19 +144,20 @@ example = """Example: Entered TSLA 5-min CALL after break of EMA9 with volume co
 journal_entry = st.text_area("Write your journal entry for today:", value=example)
 if st.button("Submit Journal Entry"):
     if journal_entry:
+        prompt = journal_entry
         try:
-            client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
+            client = OpenAI(api_key=st.secrets["general"]["openai_api_key"]) 
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a trading coach. Provide clear and concise feedback on this journal entry to help the user improve their trading psychology, chart reading, and execution."},
-                    {"role": "user", "content": journal_entry}
+                    {"role": "user", "content": prompt}
                 ]
             )
             st.success("✅ Journal entry received. Here's your feedback:")
             st.markdown(f"**Coach Feedback:** {response.choices[0].message.content}")
         except Exception as e:
-            st.error("⚠️ Error processing journal entry. Check your API key or try again.")
+            st.error(f"⚠️ Error processing journal entry: {e}")
     else:
         st.warning("✍️ Please write something before submitting.")
 
