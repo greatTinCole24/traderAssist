@@ -37,167 +37,143 @@ if len(data) < step:
     st.stop()
 subset = data.iloc[step - window_size:step]
 
-# --- TRADINGVIEW CHART EMBED ---
-st.subheader(f"📈 {ticker} TradingView Chart")
-st.components.v1.html(f"""
-    <div class=\"tradingview-widget-container\">
-      <div id=\"tradingview_{ticker.lower()}\"></div>
-      <script type=\"text/javascript\" src=\"https://s3.tradingview.com/tv.js\"></script>
-      <script type=\"text/javascript\">
-      new TradingView.widget({{
-          \"width\": \"100%\",
-          \"height\": 600,
-          \"symbol\": \"{ticker}\",
-          \"interval\": \"60\",
-          \"timezone\": \"Etc/UTC\",
-          \"theme\": \"dark\",
-          \"style\": \"1\",
-          \"locale\": \"en\",
-          \"toolbar_bg\": \"#f1f3f6\",
-          \"enable_publishing\": false,
-          \"hide_side_toolbar\": false,
-          \"allow_symbol_change\": true,
-          \"container_id\": \"tradingview_{ticker.lower()}\"
-      }});
-      </script>
-    </div>
-""", height=600)
+# --- TABS LAYOUT ---
+tab1, tab2, tab3 = st.tabs(["📈 Chart", "🎯 Quiz", "💬 Chat & Journal"])
 
-# --- CANDLESTICK ANALYSIS ---
-last_candle = subset.iloc[-1]
-body = abs(float(last_candle['Close']) - float(last_candle['Open']))
-upper_wick = float(last_candle['High']) - max(float(last_candle['Close']), float(last_candle['Open']))
-lower_wick = min(float(last_candle['Close']), float(last_candle['Open'])) - float(last_candle['Low'])
-
-st.subheader("🧠 AI Trading Coach Feedback")
-if body < upper_wick and body < lower_wick:
-    st.markdown("🔍 This looks like a **Doji** or indecision candle.")
-elif float(last_candle['Close']) > float(last_candle['Open']):
-    st.markdown("✅ Bullish candle. Consider if it's in trend continuation.")
-else:
-    st.markdown("⚠️ Bearish candle. Watch for potential reversals.")
-
-# --- DRILL MODE: GUESS THE PATTERN ---
-st.subheader("🎯 Guess the Pattern Drill")
-random_idx = random.randint(window_size, len(data) - 1)
-demo_subset = data.iloc[random_idx - window_size:random_idx]
-demo_last = demo_subset.iloc[-1]
-demo_body = abs(float(demo_last['Close']) - float(demo_last['Open']))
-demo_upper = float(demo_last['High']) - max(float(demo_last['Close']), float(demo_last['Open']))
-demo_lower = min(float(demo_last['Close']), float(demo_last['Open'])) - float(demo_last['Low'])
-
-user_guess = st.radio("What pattern do you see in the last candle?", ["Bullish", "Bearish", "Doji"])
-if st.button("Submit Guess"):
-    if demo_body < demo_upper and demo_body < demo_lower:
-        correct = "Doji"
-    elif float(demo_last['Close']) > float(demo_last['Open']):
-        correct = "Bullish"
+with tab1:
+    st.subheader(f"{ticker} TradingView Chart")
+    st.components.v1.html(f"""
+        <div class=\"tradingview-widget-container\">
+          <div id=\"tradingview_{ticker.lower()}\"></div>
+          <script src=\"https://s3.tradingview.com/tv.js\"></script>
+          <script>
+          new TradingView.widget({{
+              \"width\": \"100%\",
+              \"height\": 600,
+              \"symbol\": \"{ticker}\",
+              \"interval\": \"60\",
+              \"timezone\": \"Etc/UTC\",
+              \"theme\": \"dark\",
+              \"style\": \"1\",
+              \"locale\": \"en\",
+              \"toolbar_bg\": \"#f1f3f6\",
+              \"enable_publishing\": false,
+              \"hide_side_toolbar\": false,
+              \"allow_symbol_change\": true,
+              \"container_id\": \"tradingview_{ticker.lower()}\"
+          }});
+          </script>
+        </div>
+    """, height=600)
+    
+    # Candlestick analysis
+    last = subset.iloc[-1]
+    body = abs(float(last['Close']) - float(last['Open']))
+    upper = float(last['High']) - max(float(last['Close']), float(last['Open']))
+    lower = min(float(last['Close']), float(last['Open'])) - float(last['Low'])
+    st.subheader("🔎 Candle Insight")
+    if body < upper and body < lower:
+        st.markdown("**Doji** - Market indecision, await clearer signal.")
+    elif float(last['Close']) > float(last['Open']):
+        st.markdown("**Bullish** - Buyers in control, watch for continuation.")
     else:
-        correct = "Bearish"
+        st.markdown("**Bearish** - Sellers dominating, monitor support levels.")
 
-    st.session_state.total_attempts += 1
-
-    if user_guess == correct:
-        st.success("✅ Correct! Great job identifying the pattern.")
-        st.session_state.correct_answers += 1
-        st.session_state.streak += 1
-    else:
-        st.error(f"❌ Incorrect. The correct answer was {correct}.")
-        st.session_state.streak = 0
-
-    st.info(f"🔥 Current Streak: {st.session_state.streak}")
-    st.info(f"📊 Total Accuracy: {st.session_state.correct_answers}/{st.session_state.total_attempts} ({(st.session_state.correct_answers / st.session_state.total_attempts) * 100:.2f}%)")
-
-# --- AI CHAT COACH (with OpenAI GPT) ---
-st.subheader("💬 Ask Your Trading Coach")
-# Add context about the last candle
-if body < upper_wick and body < lower_wick:
-    direction = "Doji"
-elif float(last_candle['Close']) > float(last_candle['Open']):
-    direction = "Bullish"
-else:
-    direction = "Bearish"
-candle_description = f"The most recent candle on the {ticker} chart is a {direction} candle."
-
-user_input = st.chat_input("Ask your trading coach a question...")
-if user_input:
-    prompt = f"{candle_description}\n{user_input}"
-    try:
-        client = OpenAI(api_key=st.secrets["general"]["openai_api_key"]) 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a trading coach that explains candlestick patterns, support/resistance levels, and trade journaling insights."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        st.markdown(f"**Coach:** {response.choices[0].message.content}")
-    except Exception as e:
-        # Handle insufficient quota specifically
-        if 'insufficient_quota' in str(e):
-            st.error("🚨 You have exceeded your OpenAI API quota. Please check your plan and billing details.")
+with tab2:
+    st.subheader("🎯 Guess the Pattern Drill")
+    idx = random.randint(window_size, len(data)-1)
+    demo = data.iloc[idx-window_size:idx]
+    dlast = demo.iloc[-1]
+    dbody = abs(float(dlast['Close']) - float(dlast['Open']))
+    dupper = float(dlast['High']) - max(float(dlast['Close']), float(dlast['Open']))
+    dlower = min(float(dlast['Close']), float(dlast['Open'])) - float(dlast['Low'])
+    
+    guess = st.radio("Identify last candle pattern:", ["Bullish","Bearish","Doji"])
+    if st.button("Submit Guess Drill"):
+        st.session_state.total_attempts += 1
+        correct = ("Doji" if dbody < dupper and dbody < dlower 
+                   else "Bullish" if float(dlast['Close']) > float(dlast['Open']) 
+                   else "Bearish")
+        if guess == correct:
+            st.success(f"✅ Correct! It was {correct}.")
+            st.session_state.correct_answers += 1
+            st.session_state.streak += 1
         else:
-            st.error(f"❌ GPT API call failed: {e}")
+            st.error(f"❌ Wrong. It was {correct}.")
+            st.session_state.streak = 0
+        acc = st.session_state.correct_answers / st.session_state.total_attempts * 100
+        st.info(f"🔥 Streak: {st.session_state.streak}")
+        st.info(f"📊 Accuracy: {acc:.2f}%")
+    
+    st.markdown("---")
+    st.subheader("📋 Sample Trade Log")
+    trades = pd.DataFrame({
+        "Ticker":["SPY","TSLA","NVDA","SPY","TSLA","NVDA","SPY","TSLA","NVDA","SPY"],
+        "Date":pd.date_range(end=date.today(),periods=10).strftime("%Y-%m-%d"),
+        "Strategy":["EMA Breakout","VWAP Reversal","Trend Follow","Reversal","EMA Breakout","Overextension","VWAP Bounce","EMA Breakout","Double Top","Breakout Retest"],
+        "P/L":[0.42,-0.35,0.21,-0.40,0.50,-0.35,0.45,0.55,-0.40,0.45]
+    })
+    st.dataframe(trades)
+    
+    fig1, ax1 = plt.subplots()
+    sns.barplot(data=trades, x="Date", y="P/L", hue="Ticker", ax=ax1)
+    ax1.set_title("Profit/Loss per Trade")
+    st.pyplot(fig1)
+    
+    fig2, ax2 = plt.subplots()
+    sns.barplot(data=trades, x="Strategy", y="P/L", estimator=sum, ci=None, ax=ax2)
+    ax2.set_title("Total P/L by Strategy")
+    ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45)
+    st.pyplot(fig2)
 
-# --- JOURNALING SECTION ---
-st.subheader("📝 Daily Trade Journal with Feedback")
-st.markdown("Reflect on your trades or chart observations. The coach will give you feedback.")
-
-example = """Example: Entered TSLA 5-min CALL after break of EMA9 with volume confirmation. Stop loss was set below last swing low. Took partial profits at 20% and final exit at 50%. Missed the breakout retest opportunity."""
-
-journal_entry = st.text_area("Write your journal entry for today:", value=example)
-if st.button("Submit Journal Entry"):
-    if journal_entry:
-        prompt = journal_entry
+with tab3:
+    st.subheader("💬 Chat with Trading Coach")
+    # Candle context
+    if body < upper and body < lower:
+        direction = "Doji"
+    elif float(last['Close']) > float(last['Open']):
+        direction = "Bullish"
+    else:
+        direction = "Bearish"
+    prompt_ctx = f"Last candle is {direction} on {ticker}."
+    user_q = st.chat_input("Ask coach...")
+    if user_q:
+        prompt = f"{prompt_ctx}\n{user_q}"
         try:
-            client = OpenAI(api_key=st.secrets["general"]["openai_api_key"]) 
-            response = client.chat.completions.create(
+            client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
+            res = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "You are a trading coach. Provide clear and concise feedback on this journal entry to help the user improve their trading psychology, chart reading, and execution."},
-                    {"role": "user", "content": prompt}
+                    {"role":"system","content":"You are a helpful trading coach."},
+                    {"role":"user","content":prompt}
                 ]
             )
-            st.success("✅ Journal entry received. Here's your feedback:")
-            st.markdown(f"**Coach Feedback:** {response.choices[0].message.content}")
+            st.markdown(f"**Coach:** {res.choices[0].message.content}")
         except Exception as e:
-            # Handle insufficient quota specifically
             if 'insufficient_quota' in str(e):
-                st.error("🚨 You have exceeded your OpenAI API quota. Please check your plan and billing details.")
+                st.warning("🚨 Quota exceeded; fallback advice: see flashcards tab.")
             else:
-                st.error(f"⚠️ Error processing journal entry: {e}")
-    else:
-        st.warning("✍️ Please write something before submitting.")
+                st.error(f"❌ GPT error: {e}")
 
-# --- EXAMPLE TRADE TABLE ---
-st.subheader("📋 Sample Trade Log (SPY, NVDA, TSLA)")
-sample_trades = pd.DataFrame({
-    "Ticker": ["SPY", "TSLA", "NVDA", "SPY", "TSLA", "NVDA", "SPY", "TSLA", "NVDA", "SPY"],
-    "Date": pd.date_range(end=pd.Timestamp.today(), periods=10).strftime("%Y-%m-%d"),
-    "Time": ["10:00", "10:05", "09:45", "11:00", "10:30", "11:15", "13:00", "09:35", "14:00", "15:20"],
-    "Trade Type": ["Call", "Put", "Call", "Put", "Call", "Put", "Call", "Call", "Put", "Call"],
-    "Strategy": ["EMA Breakout", "VWAP Reversal", "Trend Follow", "Reversal", "EMA Breakout", "Overextension", "VWAP Bounce", "EMA Breakout", "Double Top", "Breakout Retest"],
-    "Entry Price": [1.23, 2.15, 1.89, 2.00, 1.75, 2.05, 1.10, 1.50, 2.30, 1.65],
-    "Exit Price": [1.65, 1.80, 2.10, 1.60, 2.25, 1.70, 1.55, 2.05, 1.90, 2.10],
-    "Profit/Loss": [0.42, -0.35, 0.21, -0.40, 0.50, -0.35, 0.45, 0.55, -0.40, 0.45]
-})
-st.dataframe(sample_trades, use_container_width=True)
-
-# --- PROFIT/LOSS AND STRATEGY VISUALIZATION ---
-st.subheader("📊 Trade Performance Visualization")
-
-# Profit/Loss Bar Chart by Date
-fig1, ax1 = plt.subplots()
-sns.barplot(data=sample_trades, x="Date", y="Profit/Loss", hue="Ticker", ax=ax1)
-ax1.set_title("Profit/Loss per Trade")
-ax1.set_ylabel("Profit/Loss")
-ax1.set_xlabel("Date")
-st.pyplot(fig1)
-
-# Strategy Type Average P/L
-fig2, ax2 = plt.subplots()
-sns.barplot(data=sample_trades, x="Strategy", y="Profit/Loss", estimator=sum, ci=None, ax=ax2)
-ax2.set_title("Total Profit/Loss by Strategy")
-ax2.set_ylabel("Total P/L")
-ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45)
-st.pyplot(fig2)
+    st.markdown("---")
+    st.subheader("📝 Daily Trade Journal")
+    journal = st.text_area("Your journal entry:")
+    if st.button("Submit Entry"):
+        if journal:
+            try:
+                client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
+                res = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role":"system","content":"Provide feedback on journal entry."},
+                        {"role":"user","content":journal}
+                    ]
+                )
+                st.markdown(f"**Feedback:** {res.choices[0].message.content}")
+            except Exception as e:
+                if 'insufficient_quota' in str(e):
+                    st.warning("🚨 Quota exceeded; fallback journal advice available.")
+                else:
+                    st.error(f"⚠️ Journal error: {e}")
+        else:
+            st.warning("✍️ Please write something first.")
