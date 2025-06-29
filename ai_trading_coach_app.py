@@ -122,7 +122,7 @@ if user_input:
     try:
         client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a trading coach that explains candlestick patterns, support/resistance levels, and trade journaling insights."},
                 {"role": "user", "content": f"{candle_description}\\n{user_input}"}
@@ -144,7 +144,7 @@ if st.button("Submit Journal Entry"):
         try:
             client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
             response = client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": "You are a trading coach. Provide clear and concise feedback on this journal entry to help the user improve their trading psychology, chart reading, and execution."},
                     {"role": "user", "content": journal_entry}
