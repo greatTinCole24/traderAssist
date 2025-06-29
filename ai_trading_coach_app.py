@@ -167,7 +167,7 @@ with tab3:
                 f"Identify systematic biases or edge deterioration in the strategy."
             )
             try:
-                client = OpenAI(api_key=st.secrets.get("general", {}).get("openai_api_key", st.secrets.get("openai_api_key", "")))
+                client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])                
                 response = client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
