@@ -7,8 +7,8 @@ from datetime import date
 from openai import OpenAI
 
 # --- PAGE SETUP ---
-st.set_page_config(page_title="Trading Flashcards, Candlestick Quiz & Journal Analysis", layout="wide")
-st.title("🎴 Trading Flashcards & Candlestick Quiz & Quant Journal")
+st.set_page_config(page_title="Beta Version of Trading Journal Application", layout="wide")
+st.title("🎴 AI Assisted Trading Journal")
 
 # --- Flashcards Data ---
 flashcards = [
