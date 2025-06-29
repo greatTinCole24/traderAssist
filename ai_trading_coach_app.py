@@ -4,6 +4,8 @@ import pandas as pd
 import random
 from datetime import datetime, date
 from openai import OpenAI
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # --- PAGE SETUP ---
 st.set_page_config(page_title="AI Trading Coach", layout="wide")
@@ -108,6 +110,13 @@ if st.button("Submit Guess"):
 
 # --- AI CHAT COACH (with OpenAI GPT) ---
 st.subheader("💬 Ask Your Trading Coach")
+
+# Describe the current candle (same one shown in TradingView) to provide context
+direction = "Bullish" if float(last_candle['Close']) > float(last_candle['Open']) else "Bearish"
+if body < upper_wick and body < lower_wick:
+    direction = "Doji"
+candle_description = f"The most recent candle on the {ticker} chart is a {direction} candle."
+
 user_input = st.chat_input("Ask your trading coach a question...")
 if user_input:
     try:
@@ -116,7 +125,7 @@ if user_input:
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a trading coach that explains candlestick patterns, support/resistance levels, and trade journaling insights."},
-                {"role": "user", "content": user_input}
+                {"role": "user", "content": f"{candle_description}\n{user_input}"}
             ]
         )
         st.markdown(f"**Coach:** {response.choices[0].message.content}")
@@ -127,7 +136,9 @@ if user_input:
 st.subheader("📝 Daily Trade Journal with Feedback")
 st.markdown("Reflect on your trades or chart observations. The coach will give you feedback.")
 
-journal_entry = st.text_area("Write your journal entry for today:")
+example = """Example: Entered TSLA 5-min CALL after break of EMA9 with volume confirmation. Stop loss was set below last swing low. Took partial profits at 20% and final exit at 50%. Missed the breakout retest opportunity."""
+
+journal_entry = st.text_area("Write your journal entry for today:", value=example)
 if st.button("Submit Journal Entry"):
     if journal_entry:
         try:
@@ -145,3 +156,36 @@ if st.button("Submit Journal Entry"):
             st.error("⚠️ Error processing journal entry. Check your API key or try again.")
     else:
         st.warning("✍️ Please write something before submitting.")
+
+# --- EXAMPLE TRADE TABLE ---
+st.subheader("📋 Sample Trade Log (SPY, NVDA, TSLA)")
+sample_trades = pd.DataFrame({
+    "Ticker": ["SPY", "TSLA", "NVDA", "SPY", "TSLA", "NVDA", "SPY", "TSLA", "NVDA", "SPY"],
+    "Date": pd.date_range(end=pd.Timestamp.today(), periods=10).strftime("%Y-%m-%d"),
+    "Time": ["10:00", "10:05", "09:45", "11:00", "10:30", "11:15", "13:00", "09:35", "14:00", "15:20"],
+    "Trade Type": ["Call", "Put", "Call", "Put", "Call", "Put", "Call", "Call", "Put", "Call"],
+    "Strategy": ["EMA Breakout", "VWAP Reversal", "Trend Follow", "Reversal", "EMA Breakout", "Overextension", "VWAP Bounce", "EMA Breakout", "Double Top", "Breakout Retest"],
+    "Entry Price": [1.23, 2.15, 1.89, 2.00, 1.75, 2.05, 1.10, 1.50, 2.30, 1.65],
+    "Exit Price": [1.65, 1.80, 2.10, 1.60, 2.25, 1.70, 1.55, 2.05, 1.90, 2.10],
+    "Profit/Loss": [0.42, -0.35, 0.21, -0.40, 0.50, -0.35, 0.45, 0.55, -0.40, 0.45]
+})
+st.dataframe(sample_trades, use_container_width=True)
+
+# --- PROFIT/LOSS AND STRATEGY VISUALIZATION ---
+st.subheader("📊 Trade Performance Visualization")
+
+# Profit/Loss Bar Chart by Date
+fig1, ax1 = plt.subplots()
+sns.barplot(data=sample_trades, x="Date", y="Profit/Loss", hue="Ticker", ax=ax1)
+ax1.set_title("Profit/Loss per Trade")
+ax1.set_ylabel("Profit/Loss")
+ax1.set_xlabel("Date")
+st.pyplot(fig1)
+
+# Strategy Type Average P/L
+fig2, ax2 = plt.subplots()
+sns.barplot(data=sample_trades, x="Strategy", y="Profit/Loss", estimator=sum, ci=None, ax=ax2)
+ax2.set_title("Total Profit/Loss by Strategy")
+ax2.set_ylabel("Total P/L")
+ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45)
+st.pyplot(fig2)
