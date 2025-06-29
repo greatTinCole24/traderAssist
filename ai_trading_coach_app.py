@@ -21,7 +21,6 @@ flashcards = [
 
 # --- Synthetic Pattern Data for Quiz ---
 def make_pattern_df(pattern):
-    # Generate synthetic OHLC data for quiz patterns
     if pattern == 'Doji':
         df = pd.DataFrame({
             'open': [1.0, 1.05, 1.02, 1.03],
@@ -58,9 +57,7 @@ def make_pattern_df(pattern):
             'close': [1.02]
         })
     else:
-        df = pd.DataFrame({
-            'open': [], 'high': [], 'low': [], 'close': []
-        })
+        df = pd.DataFrame({'open': [], 'high': [], 'low': [], 'close': []})
     df.index = range(len(df))
     return df
 
@@ -69,12 +66,10 @@ tab1, tab2, tab3 = st.tabs(["📚 Flashcards", "🧐 Candlestick Quiz", "📒 Jo
 
 # --- Tab 1: Flashcards ---
 with tab1:
-    # Initialize flashcard state
     if 'fc_index' not in st.session_state:
         st.session_state.fc_index = 0
         st.session_state.show_definition = False
 
-    # Navigation callbacks
     def next_card():
         st.session_state.fc_index = (st.session_state.fc_index + 1) % len(flashcards)
         st.session_state.show_definition = False
@@ -98,7 +93,6 @@ with tab1:
 
 # --- Tab 2: Candlestick Quiz ---
 with tab2:
-    # Initialize quiz state
     if 'quiz_pattern' not in st.session_state:
         st.session_state.quiz_pattern = random.choice([c['term'] for c in flashcards])
         st.session_state.quiz_score = 0
@@ -106,10 +100,7 @@ with tab2:
 
     pattern = st.session_state.quiz_pattern
     df = make_pattern_df(pattern)
-    fig = go.Figure(data=[go.Candlestick(
-        x=df.index,
-        open=df['open'], high=df['high'], low=df['low'], close=df['close']
-    )])
+    fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['open'], high=df['high'], low=df['low'], close=df['close'])])
     fig.update_layout(title_text="Identify the candlestick pattern", showlegend=False, template="plotly_dark")
     st.plotly_chart(fig, use_container_width=True)
 
@@ -123,17 +114,12 @@ with tab2:
             st.session_state.quiz_score += 1
         else:
             st.error(f"Wrong — the correct answer was {pattern}.")
-        # load next
         st.session_state.quiz_pattern = random.choice([c['term'] for c in flashcards])
     st.write(f"Score: {st.session_state.quiz_score} / {st.session_state.quiz_total}")
 
 # --- Tab 3: Journal & Quant Analysis ---
-# ... same as before ...
-
-# --- Tab 3: Journal & Quant Analysis ---
 with tab3:
     st.subheader("📒 Upload Your Trades CSV for Quant Analysis")
-    # Example data for demonstration
     example_dates = pd.date_range(end=date.today(), periods=7, freq='B')
     tickers = ['SPY','NVDA','TSLA']
     example_trades = pd.DataFrame({
@@ -146,20 +132,19 @@ with tab3:
         'Trade Duration': [random.randint(1,120) for _ in range(25)]
     })
     show_example = st.checkbox("Use example data (25 trades over 7 days)")
-    uploaded = st.file_uploader("Upload CSV with columns: Ticker, Date, Entry Price, Exit Price, PnL, Volume, Trade Duration", type=["csv"])
+    uploaded = st.file_uploader(
+        "Upload CSV with columns: Ticker, Date, Entry Price, Exit Price, PnL, Volume, Trade Duration", type=["csv"]
+    )
 
-    # Determine trades DataFrame
     trades = None
     if uploaded:
         trades = pd.read_csv(uploaded)
     elif show_example:
         trades = example_trades.copy()
         st.markdown("**Using Example Trade Data:**")
-    
-    # Process trades if available
+
     if trades is not None:
         st.dataframe(trades)
-        # Basic metrics
         if 'PnL' in trades.columns:
             total_pnl = trades['PnL'].sum()
             win_rate = (trades['PnL'] > 0).mean() * 100
@@ -173,7 +158,6 @@ with tab3:
         else:
             st.warning("Ensure your CSV has a 'PnL' column.")
 
-        # Quantitative Entry/Exit Analysis Prompt
         if all(col in trades.columns for col in ['Entry Price','Exit Price','PnL']):
             st.subheader("📝 Quant Entry/Exit Analysis")
             trades_json = trades.to_dict(orient='records')
@@ -183,7 +167,7 @@ with tab3:
                 f"Identify systematic biases or edge deterioration in the strategy."
             )
             try:
-                client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
+                client = OpenAI(api_key=st.secrets.get("general", {}).get("openai_api_key", st.secrets.get("openai_api_key", "")))
                 response = client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
@@ -195,14 +179,15 @@ with tab3:
             except Exception as e:
                 st.error(f"⚠️ Analysis error: {e}")
 
-        # Free-form quant discussion
         st.subheader("💬 Ask Your Quant Coach")
         summary = f"Date: {date.today()}, Total PnL: {total_pnl:.2f}, Win Rate: {win_rate:.2f}%"
-        user_q = st.text_area("Ask your quant coach about your strategy's performance, risk-adjusted returns, or edge:")
+        user_q = st.text_area(
+            "Ask your quant coach about your strategy's performance, risk-adjusted returns, or edge:"
+        )
         if st.button("Submit Quant Query") and user_q:
             full_prompt = summary + "\n" + user_q
             try:
-                client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
+                client = OpenAI(api_key=st.secrets.get("general", {}).get("openai_api_key", st.secrets.get("openai_api_key", "")))
                 res = client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
@@ -214,4 +199,6 @@ with tab3:
             except Exception as e:
                 st.error(f"❌ GPT error: {e}")
     else:
-        st.info("Upload a richly-formatted CSV or select example data to perform quantitative trade analysis and get expert feedback.")
+        st.info(
+            "Upload a richly-formatted CSV or select example data to perform quantitative trade analysis and get expert feedback."
+        )
