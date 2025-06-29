@@ -145,6 +145,7 @@ with tab3:
 
     if trades is not None:
         st.dataframe(trades)
+        # PnL metrics and chart
         if 'PnL' in trades.columns:
             total_pnl = trades['PnL'].sum()
             win_rate = (trades['PnL'] > 0).mean() * 100
@@ -158,39 +159,41 @@ with tab3:
         else:
             st.warning("Ensure your CSV has a 'PnL' column.")
 
-            if all(col in trades.columns for col in ['Entry Price','Exit Price','PnL']):
-        st.subheader("📝 Quant Entry/Exit Analysis")
-        trades_json = trades.to_dict(orient='records')
-        prompt = (
-            f"You are a quantitative trading expert with a PhD in financial engineering. "
-            f"Given these trade records: {trades_json}, provide a detailed analysis of entry timing, exit signals, slippage, risk-reward ratio, and Sharpe ratio implications. "
-            f"Identify systematic biases or edge deterioration in the strategy."
-        )
-        # Retrieve API key
-        api_key = st.secrets.get("general", {}).get("openai_api_key", st.secrets.get("openai_api_key", ""))
-        if not api_key:
-            st.error("🚨 OpenAI API key not found. Please add your key to Streamlit secrets.")
-        else:
-            try:
-                client = OpenAI(api_key=api_key)
-                response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role":"system","content":"You are a quantitative trading coach guiding professional traders."},
-                        {"role":"user","content":prompt}
-                    ]
-                )
-                st.markdown(f"**Quant Analysis:** {response.choices[0].message.content}")
-            except Exception as e:
-                st.error(f"⚠️ Analysis error: {e}")
+        # Quantitative Entry/Exit Analysis
+        if all(col in trades.columns for col in ['Entry Price','Exit Price','PnL']):
+            st.subheader("📝 Quant Entry/Exit Analysis")
+            trades_json = trades.to_dict(orient='records')
+            prompt = (
+                f"You are a quantitative trading expert with a PhD in financial engineering. "
+                f"Given these trade records: {trades_json}, provide a detailed analysis of entry timing, exit signals, slippage, risk-reward ratio, and Sharpe ratio implications. "
+                f"Identify systematic biases or edge deterioration in the strategy."
+            )
+            api_key = st.secrets.get("general", {}).get("openai_api_key", st.secrets.get("openai_api_key", ""))
+            if not api_key:
+                st.error("🚨 OpenAI API key not found. Please add your key to Streamlit secrets.")
+            else:
+                try:
+                    client = OpenAI(api_key=api_key)
+                    response = client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[
+                            {"role":"system","content":"You are a quantitative trading coach guiding professional traders."},
+                            {"role":"user","content":prompt}
+                        ]
+                    )
+                    st.markdown(f"**Quant Analysis:** {response.choices[0].message.content}")
+                except Exception as e:
+                    st.error(f"⚠️ Analysis error: {e}")
 
+        # Free-form quant discussion
         st.subheader("💬 Ask Your Quant Coach")
         summary = f"Date: {date.today()}, Total PnL: {total_pnl:.2f}, Win Rate: {win_rate:.2f}%"
         user_q = st.text_area(
             "Ask your quant coach about your strategy's performance, risk-adjusted returns, or edge:"
         )
         if st.button("Submit Quant Query") and user_q:
-            full_prompt = summary + "\n" + user_q
+            full_prompt = summary + "
+" + user_q
             api_key = st.secrets.get("general", {}).get("openai_api_key", st.secrets.get("openai_api_key", ""))
             if not api_key:
                 st.error("🚨 OpenAI API key not found. Please add your key to Streamlit secrets.")
