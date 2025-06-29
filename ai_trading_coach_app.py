@@ -39,7 +39,6 @@ if len(data) < step:
     st.warning("Step exceeds data length")
     st.stop()
 subset = data.iloc[step - window_size:step]
-[step - window_size:step]
 
 # --- TABS LAYOUT ---
 tab1, tab2, tab3 = st.tabs(["📈 Chart", "🎯 Quiz & Annotation", "💬 Chat & Journal"])
