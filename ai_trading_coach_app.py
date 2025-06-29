@@ -192,8 +192,7 @@ with tab3:
             "Ask your quant coach about your strategy's performance, risk-adjusted returns, or edge:"
         )
         if st.button("Submit Quant Query") and user_q:
-            full_prompt = summary + "
-" + user_q
+            full_prompt = summary + "\n" + user_q
             api_key = st.secrets.get("general", {}).get("openai_api_key", st.secrets.get("openai_api_key", ""))
             if not api_key:
                 st.error("🚨 OpenAI API key not found. Please add your key to Streamlit secrets.")
