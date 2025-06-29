@@ -86,61 +86,36 @@ with tab2:
     st.subheader("🎯 Guess the Pattern Drill")
     idx = random.randint(window_size, len(data) - 1)
     demo = data.iloc[idx - window_size:idx]
-    dlast = demo.iloc[-1]
-    dbody = abs(float(dlast['Close']) - float(dlast['Open']))
-    dupper = float(dlast['High']) - max(float(dlast['Close']), float(dlast['Open']))
-    dlower = min(float(dlast['Close']), float(dlast['Open'])) - float(dlast['Low'])
-    guess = st.radio("Identify last candle pattern:", ["Bullish", "Bearish", "Doji"])
-    if st.button("Submit Guess Drill"):
-        st.session_state.total_attempts += 1
-        correct = ("Doji" if dbody < dupper and dbody < dlower
-                   else "Bullish" if float(dlast['Close']) > float(dlast['Open'])
-                   else "Bearish")
-        if guess == correct:
-            st.success(f"✅ Correct! It was {correct}.")
-            st.session_state.correct_answers += 1
-            st.session_state.streak += 1
-        else:
-            st.error(f"❌ Wrong. It was {correct}.")
-            st.session_state.streak = 0
-        acc = st.session_state.correct_answers / st.session_state.total_attempts * 100
-        st.info(f"🔥 Streak: {st.session_state.streak}")
-        st.info(f"📊 Accuracy: {acc:.2f}%")
-
-    st.markdown("---")
-    st.subheader("🖍️ Annotate Chart Levels")
-    # Render Plotly candlestick for drawing
-    fig = go.Figure(data=[go.Candlestick(
+    # Display Plotly candlestick with drawing tools
+    fig_widget = go.FigureWidget(data=[go.Candlestick(
         x=demo['Datetime'], open=demo['Open'], high=demo['High'],
         low=demo['Low'], close=demo['Close']
     )])
-    fig.update_layout(height=400, template="plotly_dark")
-    # Convert to image
-    img_bytes = fig.to_image(format="png")
-    img = Image.open(io.BytesIO(img_bytes))
-    # Canvas for drawing support/resistance lines & circles
-    mode = st.selectbox("Drawing mode", ["line", "rect", "circle"])
-    canvas_result = st_canvas(
-        fill_color="rgba(0,0,0,0)", stroke_width=2,
-        stroke_color="#00FFFF", background_image=img,
-        update_streamlit=True, height=400, width=800,
-        drawing_mode=mode, key="canvas"
-    )
-    if st.button("Submit Annotations"):
-        shapes = canvas_result.json_data["objects"] if canvas_result.json_data else []
-        prompt = f"User annotated shapes: {shapes}. Please evaluate their support/resistance levels and highlighted candlesticks."  
+    fig_widget.update_layout(height=400, template="plotly_dark",
+                              dragmode='drawline',
+                              newshape=dict(line=dict(color='cyan', width=2)),
+                              modebar_add=['drawline','eraseshape'])
+    st.plotly_chart(fig_widget, use_container_width=True)
+
+    # Capture shapes and send to AI
+    if st.button("Submit Drawings"):
+        shapes = fig_widget.layout.shapes
+        prompt = f"User drew these shapes on the chart: {shapes}. Please analyze support/resistance lines and highlighted regions."  
         try:
             client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role":"system","content":"You are a trading coach analyzing user annotations."},
+                    {"role":"system","content":"You are a trading coach analyzing user-drawn chart annotations."},
                     {"role":"user","content":prompt}
                 ]
             )
             st.markdown(f"**Annotation Coach:** {response.choices[0].message.content}")
         except Exception as e:
-            st.error(f"❌ GPT error: {e}")
+            if 'insufficient_quota' in str(e):
+                st.warning("🚨 Quota exceeded; unable to provide annotation feedback.")
+            else:
+                st.error(f"❌ GPT error: {e}")
 
 # --- TAB 3: Chat & Journal ---
 with tab3:
