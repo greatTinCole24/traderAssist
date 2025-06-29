@@ -1,6 +1,9 @@
 streamlit
-openai
-pandas
 yfinance
+pandas
+openai
+plotly
+streamlit-drawable-canvas
 matplotlib
 seaborn
+pillow
