@@ -28,9 +28,66 @@ def make_pattern_df(pattern):
 tab1, tab2, tab3 = st.tabs(["📚 Flashcards", "🧐 Candlestick Quiz", "📒 Journal & Quant Analysis"])
 
 # --- Tab 1: Flashcards ---
-# ... same as before ...
+with tab1:
+    # Initialize flashcard state
+    if 'fc_index' not in st.session_state:
+        st.session_state.fc_index = 0
+        st.session_state.show_definition = False
+
+    # Navigation callbacks
+    def next_card():
+        st.session_state.fc_index = (st.session_state.fc_index + 1) % len(flashcards)
+        st.session_state.show_definition = False
+    def prev_card():
+        st.session_state.fc_index = (st.session_state.fc_index - 1) % len(flashcards)
+        st.session_state.show_definition = False
+    def reveal_def():
+        st.session_state.show_definition = True
+
+    card = flashcards[st.session_state.fc_index]
+    st.header(card['term'])
+    cols = st.columns([1,2,1])
+    with cols[0]: st.button("Previous", on_click=prev_card)
+    with cols[1]: st.button("Reveal Definition", on_click=reveal_def)
+    with cols[2]: st.button("Next", on_click=next_card)
+
+    if st.session_state.show_definition:
+        st.write(f"**Definition:** {card['definition']}")
+    else:
+        st.write("*(Click 'Reveal Definition' to see the definition.)*")
 
 # --- Tab 2: Candlestick Quiz ---
+with tab2:
+    # Initialize quiz state
+    if 'quiz_pattern' not in st.session_state:
+        st.session_state.quiz_pattern = random.choice([c['term'] for c in flashcards])
+        st.session_state.quiz_score = 0
+        st.session_state.quiz_total = 0
+
+    pattern = st.session_state.quiz_pattern
+    df = make_pattern_df(pattern)
+    fig = go.Figure(data=[go.Candlestick(
+        x=df.index,
+        open=df['open'], high=df['high'], low=df['low'], close=df['close']
+    )])
+    fig.update_layout(title_text="Identify the candlestick pattern", showlegend=False, template="plotly_dark")
+    st.plotly_chart(fig, use_container_width=True)
+
+    options = [c['term'] for c in flashcards]
+    random.shuffle(options)
+    choice = st.radio("Which pattern is this?", options)
+    if st.button("Submit Answer"):
+        st.session_state.quiz_total += 1
+        if choice == pattern:
+            st.success("Correct! 🎉")
+            st.session_state.quiz_score += 1
+        else:
+            st.error(f"Wrong — the correct answer was {pattern}.")
+        # load next
+        st.session_state.quiz_pattern = random.choice([c['term'] for c in flashcards])
+    st.write(f"Score: {st.session_state.quiz_score} / {st.session_state.quiz_total}")
+
+# --- Tab 3: Journal & Quant Analysis ---
 # ... same as before ...
 
 # --- Tab 3: Journal & Quant Analysis ---
@@ -103,7 +160,8 @@ with tab3:
         summary = f"Date: {date.today()}, Total PnL: {total_pnl:.2f}, Win Rate: {win_rate:.2f}%"
         user_q = st.text_area("Ask your quant coach about your strategy's performance, risk-adjusted returns, or edge:")
         if st.button("Submit Quant Query") and user_q:
-            full_prompt = summary + "\n" + user_q
+            full_prompt = summary + "
+" + user_q
             try:
                 client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
                 res = client.chat.completions.create(
