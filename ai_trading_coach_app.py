@@ -159,15 +159,20 @@ with tab3:
             st.warning("Ensure your CSV has a 'PnL' column.")
 
         if all(col in trades.columns for col in ['Entry Price','Exit Price','PnL']):
-            st.subheader("📝 Quant Entry/Exit Analysis")
-            trades_json = trades.to_dict(orient='records')
-            prompt = (
-                f"You are a quantitative trading expert with a PhD in financial engineering. "
-                f"Given these trade records: {trades_json}, provide a detailed analysis of entry timing, exit signals, slippage, risk-reward ratio, and Sharpe ratio implications. "
-                f"Identify systematic biases or edge deterioration in the strategy."
-            )
+        st.subheader("📝 Quant Entry/Exit Analysis")
+        trades_json = trades.to_dict(orient='records')
+        prompt = (
+            f"You are a quantitative trading expert with a PhD in financial engineering. "
+            f"Given these trade records: {trades_json}, provide a detailed analysis of entry timing, exit signals, slippage, risk-reward ratio, and Sharpe ratio implications. "
+            f"Identify systematic biases or edge deterioration in the strategy."
+        )
+        # Retrieve API key
+        api_key = st.secrets.get("general", {}).get("openai_api_key", st.secrets.get("openai_api_key", ""))
+        if not api_key:
+            st.error("🚨 OpenAI API key not found. Please add your key to Streamlit secrets.")
+        else:
             try:
-                client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])                
+                client = OpenAI(api_key=api_key)
                 response = client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
@@ -186,18 +191,22 @@ with tab3:
         )
         if st.button("Submit Quant Query") and user_q:
             full_prompt = summary + "\n" + user_q
-            try:
-                client = OpenAI(api_key=st.secrets.get("general", {}).get("openai_api_key", st.secrets.get("openai_api_key", "")))
-                res = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role":"system","content":"You are a quant trading coach for institutional-grade strategies."},
-                        {"role":"user","content":full_prompt}
-                    ]
-                )
-                st.markdown(f"**Quant Coach:** {res.choices[0].message.content}")
-            except Exception as e:
-                st.error(f"❌ GPT error: {e}")
+            api_key = st.secrets.get("general", {}).get("openai_api_key", st.secrets.get("openai_api_key", ""))
+            if not api_key:
+                st.error("🚨 OpenAI API key not found. Please add your key to Streamlit secrets.")
+            else:
+                try:
+                    client = OpenAI(api_key=api_key)
+                    res = client.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[
+                            {"role":"system","content":"You are a quant trading coach for institutional-grade strategies."},
+                            {"role":"user","content":full_prompt}
+                        ]
+                    )
+                    st.markdown(f"**Quant Coach:** {res.choices[0].message.content}")
+                except Exception as e:
+                    st.error(f"❌ GPT error: {e}")
     else:
         st.info(
             "Upload a richly-formatted CSV or select example data to perform quantitative trade analysis and get expert feedback."
