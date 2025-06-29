@@ -2,8 +2,12 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import random
+import io
+from PIL import Image
 from datetime import datetime, date
 from openai import OpenAI
+import plotly.graph_objects as go
+from streamlit_drawable_canvas import st_canvas
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -25,11 +29,12 @@ ticker = st.sidebar.selectbox("Choose a Ticker", ["NVDA", "TSLA"])
 window_size = st.sidebar.slider("Window Size (candles)", 20, 100, 50)
 step = st.sidebar.slider("Current Candle Index", 50, 500, 100)
 
-# --- LOAD DATA ---
-@st.cache_data
 def load_data(ticker):
     df = yf.download(ticker, period="3mo", interval="1h")
     return df.reset_index()
+
+@st.cache_data
+# Load OHLC data once per session
 
 data = load_data(ticker)
 if len(data) < step:
@@ -38,12 +43,13 @@ if len(data) < step:
 subset = data.iloc[step - window_size:step]
 
 # --- TABS LAYOUT ---
-tab1, tab2, tab3 = st.tabs(["📈 Chart", "🎯 Quiz", "💬 Chat & Journal"])
+tab1, tab2, tab3 = st.tabs(["📈 Chart", "🎯 Quiz & Annotation", "💬 Chat & Journal"])
 
+# --- TAB 1: TradingView Chart + Insight ---
 with tab1:
     st.subheader(f"{ticker} TradingView Chart")
     st.components.v1.html(f"""
-        <div class=\"tradingview-widget-container\">
+        <div class=\"tradingview-widget-container\">  
           <div id=\"tradingview_{ticker.lower()}\"></div>
           <script src=\"https://s3.tradingview.com/tv.js\"></script>
           <script>
@@ -65,8 +71,6 @@ with tab1:
           </script>
         </div>
     """, height=600)
-    
-    # Candlestick analysis
     last = subset.iloc[-1]
     body = abs(float(last['Close']) - float(last['Open']))
     upper = float(last['High']) - max(float(last['Close']), float(last['Open']))
@@ -79,20 +83,20 @@ with tab1:
     else:
         st.markdown("**Bearish** - Sellers dominating, monitor support levels.")
 
+# --- TAB 2: Quiz & Annotation ---
 with tab2:
     st.subheader("🎯 Guess the Pattern Drill")
-    idx = random.randint(window_size, len(data)-1)
-    demo = data.iloc[idx-window_size:idx]
+    idx = random.randint(window_size, len(data) - 1)
+    demo = data.iloc[idx - window_size:idx]
     dlast = demo.iloc[-1]
     dbody = abs(float(dlast['Close']) - float(dlast['Open']))
     dupper = float(dlast['High']) - max(float(dlast['Close']), float(dlast['Open']))
     dlower = min(float(dlast['Close']), float(dlast['Open'])) - float(dlast['Low'])
-    
-    guess = st.radio("Identify last candle pattern:", ["Bullish","Bearish","Doji"])
+    guess = st.radio("Identify last candle pattern:", ["Bullish", "Bearish", "Doji"])
     if st.button("Submit Guess Drill"):
         st.session_state.total_attempts += 1
-        correct = ("Doji" if dbody < dupper and dbody < dlower 
-                   else "Bullish" if float(dlast['Close']) > float(dlast['Open']) 
+        correct = ("Doji" if dbody < dupper and dbody < dlower
+                   else "Bullish" if float(dlast['Close']) > float(dlast['Open'])
                    else "Bearish")
         if guess == correct:
             st.success(f"✅ Correct! It was {correct}.")
@@ -104,28 +108,43 @@ with tab2:
         acc = st.session_state.correct_answers / st.session_state.total_attempts * 100
         st.info(f"🔥 Streak: {st.session_state.streak}")
         st.info(f"📊 Accuracy: {acc:.2f}%")
-    
-    st.markdown("---")
-    st.subheader("📋 Sample Trade Log")
-    trades = pd.DataFrame({
-        "Ticker":["SPY","TSLA","NVDA","SPY","TSLA","NVDA","SPY","TSLA","NVDA","SPY"],
-        "Date":pd.date_range(end=date.today(),periods=10).strftime("%Y-%m-%d"),
-        "Strategy":["EMA Breakout","VWAP Reversal","Trend Follow","Reversal","EMA Breakout","Overextension","VWAP Bounce","EMA Breakout","Double Top","Breakout Retest"],
-        "P/L":[0.42,-0.35,0.21,-0.40,0.50,-0.35,0.45,0.55,-0.40,0.45]
-    })
-    st.dataframe(trades)
-    
-    fig1, ax1 = plt.subplots()
-    sns.barplot(data=trades, x="Date", y="P/L", hue="Ticker", ax=ax1)
-    ax1.set_title("Profit/Loss per Trade")
-    st.pyplot(fig1)
-    
-    fig2, ax2 = plt.subplots()
-    sns.barplot(data=trades, x="Strategy", y="P/L", estimator=sum, ci=None, ax=ax2)
-    ax2.set_title("Total P/L by Strategy")
-    ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45)
-    st.pyplot(fig2)
 
+    st.markdown("---")
+    st.subheader("🖍️ Annotate Chart Levels")
+    # Render Plotly candlestick for drawing
+    fig = go.Figure(data=[go.Candlestick(
+        x=demo['Datetime'], open=demo['Open'], high=demo['High'],
+        low=demo['Low'], close=demo['Close']
+    )])
+    fig.update_layout(height=400, template="plotly_dark")
+    # Convert to image
+    img_bytes = fig.to_image(format="png")
+    img = Image.open(io.BytesIO(img_bytes))
+    # Canvas for drawing support/resistance lines & circles
+    mode = st.selectbox("Drawing mode", ["line", "rect", "circle"])
+    canvas_result = st_canvas(
+        fill_color="rgba(0,0,0,0)", stroke_width=2,
+        stroke_color="#00FFFF", background_image=img,
+        update_streamlit=True, height=400, width=800,
+        drawing_mode=mode, key="canvas"
+    )
+    if st.button("Submit Annotations"):
+        shapes = canvas_result.json_data["objects"] if canvas_result.json_data else []
+        prompt = f"User annotated shapes: {shapes}. Please evaluate their support/resistance levels and highlighted candlesticks."  
+        try:
+            client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role":"system","content":"You are a trading coach analyzing user annotations."},
+                    {"role":"user","content":prompt}
+                ]
+            )
+            st.markdown(f"**Annotation Coach:** {response.choices[0].message.content}")
+        except Exception as e:
+            st.error(f"❌ GPT error: {e}")
+
+# --- TAB 3: Chat & Journal ---
 with tab3:
     st.subheader("💬 Chat with Trading Coach")
     # Candle context
@@ -150,11 +169,7 @@ with tab3:
             )
             st.markdown(f"**Coach:** {res.choices[0].message.content}")
         except Exception as e:
-            if 'insufficient_quota' in str(e):
-                st.warning("🚨 Quota exceeded; fallback advice: see flashcards tab.")
-            else:
-                st.error(f"❌ GPT error: {e}")
-
+            st.error(f"❌ GPT error: {e}")
     st.markdown("---")
     st.subheader("📝 Daily Trade Journal")
     journal = st.text_area("Your journal entry:")
@@ -171,9 +186,6 @@ with tab3:
                 )
                 st.markdown(f"**Feedback:** {res.choices[0].message.content}")
             except Exception as e:
-                if 'insufficient_quota' in str(e):
-                    st.warning("🚨 Quota exceeded; fallback journal advice available.")
-                else:
-                    st.error(f"⚠️ Journal error: {e}")
+                st.error(f"⚠️ Journal error: {e}")
         else:
             st.warning("✍️ Please write something first.")
