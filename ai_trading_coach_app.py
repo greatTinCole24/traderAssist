@@ -160,8 +160,7 @@ with tab3:
         summary = f"Date: {date.today()}, Total PnL: {total_pnl:.2f}, Win Rate: {win_rate:.2f}%"
         user_q = st.text_area("Ask your quant coach about your strategy's performance, risk-adjusted returns, or edge:")
         if st.button("Submit Quant Query") and user_q:
-            full_prompt = summary + "
-" + user_q
+            full_prompt = summary + "" + user_q
             try:
                 client = OpenAI(api_key=st.secrets["general"]["openai_api_key"])
                 res = client.chat.completions.create(
